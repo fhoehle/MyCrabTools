@@ -11,13 +11,15 @@ class crabDeamon(object):
     self.crabJobDir = (where +(os.path.sep if not where.endswith(os.path.sep) else "")+possCrabs[0]) if len (possCrabs) > 0 else None
     if not self.crabJobDir.startswith('crab_0_'):
       print "Warning using not crab default directory ",self.crabJobDir
-  def executeCommand(self,command,debug = False,returnOutput = False):
-    if not hasattr(self,'crabJobDir'):
+  def executeCommand(self,command,debug = False,returnOutput = False,where = ''):
+    if not hasattr(self,'crabJobDir') and not '-create' in command:
       print "no crabJobDir given "; return
     import subprocess,os,sys
-    whereExec = "-c "+self.crabJobDir+" "
+    whereExec = ""
+    if not '-create' in command:
+      whereExec = "-c "+self.crabJobDir+" " 
     stopKey = 'stopKeyDONE'
-    command = " crab "+whereExec+command+' ; echo "'+stopKey+'"'
+    command = ("cd "+where+" &&" if where else "")+ " crab "+whereExec +command+' ; echo "'+stopKey+'"'
     if debug:
       print "executing command ",command
     subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=subprocess.PIPE,env=os.environ)
