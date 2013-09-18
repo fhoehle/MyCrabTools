@@ -47,6 +47,14 @@ class crabDeamon(object):
         self.executeCommand(crabCommand,debug)
     else:
       self.executeCommand(command+" "+",".join(listJobs),True)
+  def jobRetrievedGood(self,jobStatusS = None):
+    import re
+    jobs = []
+    for  j in jobStatusS if jobStatusS else [ l for l in self.executeCommand("-status",False,True) if re.match('^[0-9]+[ \t]+[YN][ \t]+[a-zA-Z]+[ \t]+',l)]:
+      jSplit = j.split()
+      if  len(jSplit) > 5 and jSplit[2] == "Retrieved" and jSplit[5] == "0":
+        jobs.append(jSplit[0])
+    return jobs
   def automaticResubmit(self,onlySummary = False):
     import re
     jobOutput = [ l for l in self.executeCommand("-status",False,True) if re.match('^[0-9]+[ \t]+[YN][ \t]+[a-zA-Z]+[ \t]+',l)]
