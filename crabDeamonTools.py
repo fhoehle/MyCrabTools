@@ -1,4 +1,4 @@
-import os,sys,subprocess
+import os,sys,subprocess,re
 #####
 class crabDeamon(object):
   def __init__(self,autoFind = True):
@@ -19,18 +19,24 @@ class crabDeamon(object):
     if not '-create' in command:
       whereExec = "-c "+self.crabJobDir+" " 
     stopKey = 'stopKeyDONE'
-    command = ("cd "+where+" &&" if where else "")+ " crab "+whereExec +command+' ; echo "'+stopKey+'"'
+    command = ("cd "+where+" &&" if where else "")+ " crab "+whereExec +command+' ;echo "returnCodeCrab: "$?"!"; echo "'+stopKey+'"'
     if debug:
       print "executing command ",command
     subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=subprocess.PIPE,env=os.environ)
-    subPStdOut = []
+    subPStdOut = [];crabExitCode=None
     for line in iter(subPrOutput.stdout.readline,stopKey+'\n'):
+      if 'returnCodeCrab' in line:
+        crabExitCode=line
       if debug:
         print line
       subPStdOut.append(line)
     subPrOutput.stdout.close()
+    crabExitCode = re.match('returnCodeCrab:\ ([^!]*)!',crabExitCode).group(1) if re.match('returnCodeCrab:([^!]*)!',crabExitCode) else None
+    if subPrOutput.poll() == None:
+      os.kill(subPrOutput.pid,9)
     if not returnOutput:
-      print "ERRORCODE ",subPrOutput.returncode
+      print "Crab ExitCode ",crabExitCode
+      return crabExitCode
     else:
       return subPStdOut
   def status(self):
@@ -39,16 +45,14 @@ class crabDeamon(object):
     self.executeCommand("-getoutput",debug = True)
   def multiCommand(self,command,listJobs,debug=False):
     numJobs = len(listJobs)
-    crabCommand = None
-    if numJobs > 500:
-      print "submitting ",numJobs," jobs"
-      for i in range(numJobs/500+1):
-        begin=(i*500); end=(((i+1)*500) if ((i+1)*500) < numJobs else numJobs)
-        jobsToSubmit = listJobs[begin:end]
-        crabCommand=command+" "+",".join(jobsToSubmit)
-        self.executeCommand(crabCommand,debug)
-    else:
-      self.executeCommand(command+" "+",".join(listJobs),True)
+    crabCommand = None; exitCode = ""
+    for i in range(numJobs/500+1):
+      begin=(i*500); end=(((i+1)*500) if ((i+1)*500) < numJobs else numJobs)
+      jobsToSubmit = listJobs[begin:end]
+      crabCommand=command+" "+",".join(jobsToSubmit)
+      exitCode = self.executeCommand(crabCommand,debug,False)
+      if exitCode != "0":
+        print 'command ',crabCommand," failed with ",exitCode
   def jobRetrievedGood(self,jobStatusS = None):
     import re
     jobs = []
@@ -57,9 +61,11 @@ class crabDeamon(object):
       if  len(jSplit) > 5 and jSplit[2] == "Retrieved" and jSplit[5] == "0":
         jobs.append(jSplit[0])
     return jobs
-  def automaticResubmit(self,onlySummary = False):
+  def automaticResubmit(self,onlySummary = False,debug = False):
     import re
-    jobOutput = [ l for l in self.executeCommand("-status",False,True) if re.match('^[0-9]+[ \t]+[YN][ \t]+[a-zA-Z]+[ \t]+',l)]
+    self.executeCommand("-status")
+    completeOutput = self.executeCommand("-status",False,True)
+    jobOutput = [ l for l in completeOutput if re.match('^[0-9]+[ \t]+[YN][ \t]+[a-zA-Z]+[ \t]+',l)]
     doneJobsGood = self.jobRetrievedGood(jobOutput); doneJobsBad = []; abortedJobs = []; downloadableJobs = []; downloadedJobsBad = [];downloadableNoCodeJobs=[]; createdJobs = [];
     for j in jobOutput:
       jSplit = j.split()
@@ -86,7 +92,9 @@ class crabDeamon(object):
       print "downloadableNoCodeJobs", downloadableNoCodeJobs
       print "back to Created  ",createdJobs
     if len(doneJobsBad+downloadableJobs+downloadableNoCodeJobs):
-      self.executeCommand("-get "+",".join(doneJobsBad+downloadableJobs+downloadableNoCodeJobs),debug = True and not onlySummary )
+      exitCode = self.executeCommand("-get "+",".join(doneJobsBad+downloadableJobs+downloadableNoCodeJobs),debug = True and not onlySummary,returnOutput = False)
+      if exitCode != "0" and not exitCode == None:
+        sys.exit('getting outputFailed for bad Jobs'+",".join(doneJobsBad+downloadableJobs+downloadableNoCodeJobs)+' exitcode '+exitCode)
     if len(doneJobsBad+downloadedJobsBad+abortedJobs) > 0:
       self.multiCommand('-resubmit',doneJobsBad+downloadedJobsBad+abortedJobs,debug = True and not onlySummary)
     if len(createdJobs) > 0:
