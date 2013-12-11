@@ -35,7 +35,8 @@ class crabDeamon(object):
     if subPrOutput.poll() == None:
       os.kill(subPrOutput.pid,9)
     if not returnOutput:
-      print "Crab ExitCode ",crabExitCode
+      if debug:
+        print "Crab ExitCode ",crabExitCode
       return crabExitCode
     else:
       return subPStdOut
@@ -53,20 +54,20 @@ class crabDeamon(object):
       exitCode = self.executeCommand(crabCommand,debug,False)
       if exitCode != "0":
         print 'command ',crabCommand," failed with ",exitCode
-  def jobRetrievedGood(self,jobStatusS = None):
-    import re
-    jobs = []
-    for  j in jobStatusS if jobStatusS else [ l for l in self.executeCommand("-status",False,True) if re.match('^[0-9]+[ \t]+[YN][ \t]+[a-zA-Z]+[ \t]+',l)]:
-      jSplit = j.split()
-      if  len(jSplit) > 5 and jSplit[2] == "Retrieved" and jSplit[5] == "0":
-        jobs.append(jSplit[0])
-    return jobs
-  def automaticResubmit(self,onlySummary = False,debug = False):
+  def jobRetrievedGood(self):
+    return self.testJobStatus( [(2,"Retrieved"),(5,"0")],self.getStatusList())
+  def getStatusList(self):
     import re
     self.executeCommand("-status")
     completeOutput = self.executeCommand("-status",False,True)
-    jobOutput = [ l for l in completeOutput if re.match('^[0-9]+[ \t]+[YN][ \t]+[a-zA-Z]+[ \t]+',l)]
-    doneJobsGood = self.jobRetrievedGood(jobOutput); doneJobsBad = []; abortedJobs = []; downloadableJobs = []; downloadedJobsBad = [];downloadableNoCodeJobs=[]; createdJobs = [];
+    return [ l for l in completeOutput if re.match('^[0-9]+[ \t]+[YN][ \t]+[a-zA-Z]+[ \t]+',l)]
+  def testJobStatus(self,tests,statusOutputs):
+    noTest=len(tests)
+    maxP = max( [ t[0] for t in tests])   
+    return [ statusOutput.split()[0] for statusOutput in statusOutputs if maxP < len(statusOutput.split()) and sum( [statusOutput.split()[i] == t for i,t in tests]  ) == noTest ]
+  def automaticResubmit(self,onlySummary = False,debug = False):
+    jobOutput = self.getStatusList()
+    doneJobsGood = self.jobRetrievedGood(); doneJobsBad = []; abortedJobs = []; downloadableJobs = []; downloadedJobsBad = [];downloadableNoCodeJobs=[]; createdJobs = [];
     for j in jobOutput:
       jSplit = j.split()
       if  len(jSplit) > 5:
@@ -106,3 +107,4 @@ class crabDeamon(object):
       print "jobs resubmitted ",",".join(doneJobsBad+downloadedJobsBad+abortedJobs)
       print "just downloaded ",",".join(downloadableNoCodeJobs)
       print "back to Created  ",",".join(createdJobs)
+  
