@@ -86,7 +86,7 @@ class crabDeamon(object):
           createdJobs.append(jSplit[0])
     if not onlySummary:
       print " downloadableJobs ",downloadableJobs
-      print "doneJobsGood ",doneJobsGood
+      print "doneJobsGood ",doneJobsGood," of ",len(jobOutput)
       print "doneJobsBad ", doneJobsBad 
       print "abortedJobs ",abortedJobs
       print "downloadedJobsBad ",downloadedJobsBad
