@@ -28,7 +28,7 @@ class crabDeamon(object):
       if 'returnCodeCrab' in line:
         crabExitCode=line
       if debug:
-        print line
+        print line,
       subPStdOut.append(line)
     subPrOutput.stdout.close()
     crabExitCode = re.match('returnCodeCrab:\ ([^!]*)!',crabExitCode).group(1) if re.match('returnCodeCrab:([^!]*)!',crabExitCode) else None
