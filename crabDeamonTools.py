@@ -26,7 +26,8 @@ class crabDeamon(object):
     subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=(open(self.stdoutTMPfile,'w') if self.stdoutTMPfile else subprocess.PIPE ),env=os.environ)
     subPStdOut = [];crabExitCode=None
     print "waiting for Crab"
-    subPrOutput.wait() 
+    if self.stdoutTMPfile:
+      subPrOutput.wait() 
     for i,line in enumerate(iter((open(self.stdoutTMPfile).readline if self.stdoutTMPfile else subPrOutput.stdout.readline),stopKey+'\n')):
       if 'returnCodeCrab' in line:
         crabExitCode=line
