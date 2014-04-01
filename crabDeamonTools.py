@@ -5,6 +5,7 @@ class crabDeamon(object):
     if autoFind:
       self.findCrabJobDir() 
     else: self.crabJobDir = None
+    self.stdoutTMPfile = os.getenv('PWD')+"/crabStdoutTMPfile.log"
   def findCrabJobDir(self,where=os.getenv('PWD')):
     import os
     possCrabs = os.walk(where).next()[1];possCrabs.sort()
@@ -22,16 +23,19 @@ class crabDeamon(object):
     command = ("cd "+where+" &&" if where else "")+ " crab "+whereExec +command+' ;echo "returnCodeCrab: "$?"!"; echo "'+stopKey+'"'
     if debug:
       print "executing command ",command
-    subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=subprocess.PIPE,env=os.environ)
+    subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=(open(self.stdoutTMPfile,'w') if self.stdoutTMPfile else subprocess.PIPE ),env=os.environ)
     subPStdOut = [];crabExitCode=None
-    for line in iter(subPrOutput.stdout.readline,stopKey+'\n'):
+    print "waiting for Crab"
+    subPrOutput.wait() 
+    for i,line in enumerate(iter((open(self.stdoutTMPfile).readline if self.stdoutTMPfile else subPrOutput.stdout.readline),stopKey+'\n')):
       if 'returnCodeCrab' in line:
         crabExitCode=line
       if debug:
         print line,
-      subPStdOut.append(line)
-    print ""
-    subPrOutput.stdout.close()
+      if not self.stdoutTMPfile:
+        subPStdOut.append(line)
+    if not self.stdoutTMPfile:
+      subPrOutput.stdout.close()
     crabExitCode = re.match('returnCodeCrab:\ ([^!]*)!',crabExitCode).group(1) if re.match('returnCodeCrab:([^!]*)!',crabExitCode) else None
     if subPrOutput.poll() == None:
       os.kill(subPrOutput.pid,9)
@@ -40,7 +44,7 @@ class crabDeamon(object):
         print "Crab ExitCode ",crabExitCode
       return crabExitCode
     else:
-      return subPStdOut
+      return open(self.stdoutTMPfile) if self.stdoutTMPfile else subPStdOut
   def status(self):
     self.executeCommand("-status",debug = True)
   def getoutput(self):
@@ -68,7 +72,7 @@ class crabDeamon(object):
     return [ statusOutput.split()[0] for statusOutput in statusOutputs if maxP < len(statusOutput.split()) and sum( [statusOutput.split()[i] == t for i,t in tests]  ) == noTest ]
   def automaticResubmit(self,onlySummary = False,debug = False):
     jobOutput = self.getStatusList()
-    doneJobsGood = self.jobRetrievedGood(); doneJobsBad = []; abortedJobs = []; downloadableJobs = []; downloadedJobsBad = [];downloadableNoCodeJobs=[]; createdJobs = [];
+    doneJobsGood = self.jobRetrievedGood(); doneJobsBad = []; abortedJobs = []; downloadableJobs = []; downloadedJobsBad = [];downloadableNoCodeJobs=[]; createdJobs = []; cancelledJobs = [];
     for j in jobOutput:
       jSplit = j.split()
       if  len(jSplit) > 5:
@@ -76,7 +80,9 @@ class crabDeamon(object):
           downloadedJobsBad.append(jSplit[0])
         if jSplit[2] == "Done" and jSplit[5] != "0":
           doneJobsBad.append(jSplit[0]) 
-      if jSplit[2] == "Aborted":
+      if jSplit[2] == "Cancelled":
+        cancelledJobs.append(jSplit[0])
+      if jSplit[2] == "Aborted" :
         abortedJobs.append(jSplit[0])
       if len(jSplit) > 5 and jSplit[2]  == "Done" and jSplit[3]  == "Terminated" and jSplit[5] == "0": 
         downloadableJobs.append(jSplit[0])
@@ -89,23 +95,30 @@ class crabDeamon(object):
       print " downloadableJobs ",downloadableJobs
       print "doneJobsGood ",doneJobsGood," ",len(doneJobsGood)," of ",len(jobOutput)
       print "doneJobsBad ", doneJobsBad 
+      print "cancelled jobs ",cancelledJobs
       print "abortedJobs ",abortedJobs
       print "downloadedJobsBad ",downloadedJobsBad
       print "downloadableNoCodeJobs", downloadableNoCodeJobs
       print "back to Created  ",createdJobs
+    if len(cancelledJobs):
+      if not onlySummary:
+        print "killing cancelled jobs"
+      exitCode = self.executeCommand("-kill "+",".join(cancelledJobs),debug = True and not onlySummary,returnOutput = False)
+      if exitCode != "0" and not exitCode == None:
+        print "killing failed for ",cancelledJobs
     if len(doneJobsBad+downloadableJobs+downloadableNoCodeJobs):
       exitCode = self.executeCommand("-get "+",".join(doneJobsBad+downloadableJobs+downloadableNoCodeJobs),debug = True and not onlySummary,returnOutput = False)
       if exitCode != "0" and not exitCode == None:
         sys.exit('getting outputFailed for bad Jobs'+",".join(doneJobsBad+downloadableJobs+downloadableNoCodeJobs)+' exitcode '+exitCode)
-    if len(doneJobsBad+downloadedJobsBad+abortedJobs) > 0:
-      self.multiCommand('-resubmit',doneJobsBad+downloadedJobsBad+abortedJobs,debug = True and not onlySummary)
+    if len(doneJobsBad+downloadedJobsBad+abortedJobs+cancelledJobs) > 0:
+      self.multiCommand('-resubmit',doneJobsBad+downloadedJobsBad+cancelledJobs+abortedJobs,debug = True and not onlySummary)
     if len(createdJobs) > 0:
       self.multiCommand('-submit',createdJobs,debug = True and not onlySummary)
     if onlySummary:
       print "CrabJob ",self.postfix
       print "jobs done/retrieved good ",",".join(doneJobsGood+downloadableJobs)
       print len(doneJobsGood+downloadableJobs),"/",len(jobOutput)
-      print "jobs resubmitted ",",".join(doneJobsBad+downloadedJobsBad+abortedJobs)
+      print "jobs resubmitted ",",".join(doneJobsBad+downloadedJobsBad+abortedJobs+cancelledJobs)
       print "just downloaded ",",".join(downloadableNoCodeJobs)
       print "back to Created  ",",".join(createdJobs)
   
