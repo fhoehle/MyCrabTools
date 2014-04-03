@@ -23,19 +23,19 @@ class crabDeamon(object):
     command = ("cd "+where+" &&" if where else "")+ " crab "+whereExec +command+' ;echo "returnCodeCrab: "$?"!"; echo "'+stopKey+'"'
     if debug:
       print "executing command ",command
-    subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=(open(self.stdoutTMPfile,'w') if self.stdoutTMPfile else subprocess.PIPE ),env=os.environ)
+    subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=(open(self.stdoutTMPfile,'w') if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subprocess.PIPE ),env=os.environ)
     subPStdOut = [];crabExitCode=None
     print "waiting for Crab"
-    if self.stdoutTMPfile:
+    if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile:
       subPrOutput.wait() 
-    for i,line in enumerate(iter((open(self.stdoutTMPfile).readline if self.stdoutTMPfile else subPrOutput.stdout.readline),stopKey+'\n')):
+    for i,line in enumerate(iter((open(self.stdoutTMPfile).readline if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subPrOutput.stdout.readline),stopKey+'\n')):
       if 'returnCodeCrab' in line:
         crabExitCode=line
       if debug:
         print line,
-      if not self.stdoutTMPfile:
+      if not hasattr(self,'stdoutTMPfile') or not self.stdoutTMPfile:
         subPStdOut.append(line)
-    if not self.stdoutTMPfile:
+    if not hasattr(self,'stdoutTMPfile') or not self.stdoutTMPfile:
       subPrOutput.stdout.close()
     crabExitCode = re.match('returnCodeCrab:\ ([^!]*)!',crabExitCode).group(1) if re.match('returnCodeCrab:([^!]*)!',crabExitCode) else None
     if subPrOutput.poll() == None:
@@ -45,7 +45,7 @@ class crabDeamon(object):
         print "Crab ExitCode ",crabExitCode
       return crabExitCode
     else:
-      return open(self.stdoutTMPfile) if self.stdoutTMPfile else subPStdOut
+      return open(self.stdoutTMPfile) if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subPStdOut
   def status(self):
     self.executeCommand("-status",debug = True)
   def getoutput(self):
@@ -60,8 +60,10 @@ class crabDeamon(object):
       exitCode = self.executeCommand(crabCommand,debug,False)
       if exitCode != "0":
         print 'command ',crabCommand," failed with ",exitCode
-  def jobRetrievedGood(self):
-    return self.testJobStatus( [(2,"Retrieved"),(5,"0")],self.getStatusList())
+  def jobRetrievedGood(self,updateGoodJobsList = False):
+    if not hasattr(self,'retrievedGoodJobs') or updateGoodJobsList:
+      self.retrievedGoodJobs = self.testJobStatus( [(2,"Retrieved"),(5,"0")],self.getStatusList())
+    return self.retrievedGoodJobs
   def getStatusList(self):
     import re
     self.executeCommand("-status")
@@ -73,7 +75,7 @@ class crabDeamon(object):
     return [ statusOutput.split()[0] for statusOutput in statusOutputs if maxP < len(statusOutput.split()) and sum( [statusOutput.split()[i] == t for i,t in tests]  ) == noTest ]
   def automaticResubmit(self,onlySummary = False,debug = False):
     jobOutput = self.getStatusList()
-    doneJobsGood = self.jobRetrievedGood(); doneJobsBad = []; abortedJobs = []; downloadableJobs = []; downloadedJobsBad = [];downloadableNoCodeJobs=[]; createdJobs = []; cancelledJobs = [];
+    doneJobsGood = self.jobRetrievedGood(updateGoodJobsList=True); doneJobsBad = []; abortedJobs = []; downloadableJobs = []; downloadedJobsBad = [];downloadableNoCodeJobs=[]; createdJobs = []; cancelledJobs = [];
     for j in jobOutput:
       jSplit = j.split()
       if  len(jSplit) > 5:
