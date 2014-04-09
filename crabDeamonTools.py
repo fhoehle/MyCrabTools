@@ -25,7 +25,8 @@ class crabDeamon(object):
       print "executing command ",command
     subPrOutput = subprocess.Popen([command],bufsize=1 , stdin=open(os.devnull),shell=True,stdout=(open(self.stdoutTMPfile,'w') if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subprocess.PIPE ),env=os.environ)
     subPStdOut = [];crabExitCode=None
-    print "waiting for Crab"
+    if debug:
+      print "waiting for Crab"
     if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile:
       subPrOutput.wait() 
     for i,line in enumerate(iter((open(self.stdoutTMPfile).readline if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subPrOutput.stdout.readline),stopKey+'\n')):
@@ -119,8 +120,7 @@ class crabDeamon(object):
       self.multiCommand('-submit',createdJobs,debug = True and not onlySummary)
     if onlySummary:
       print "CrabJob ",self.postfix
-      print "jobs done/retrieved good ",",".join(doneJobsGood+downloadableJobs)
-      print len(doneJobsGood+downloadableJobs),"/",len(jobOutput)
+      print "jobs done/retrieved good ",len(doneJobsGood+downloadableJobs),"/",len(jobOutput)
       print "jobs resubmitted ",",".join(doneJobsBad+downloadedJobsBad+abortedJobs+cancelledJobs)
       print "just downloaded ",",".join(downloadableNoCodeJobs)
       print "back to Created  ",",".join(createdJobs)
