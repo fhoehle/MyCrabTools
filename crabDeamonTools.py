@@ -6,6 +6,8 @@ class crabDeamon(object):
       self.findCrabJobDir() 
     else: self.crabJobDir = None
     self.stdoutTMPfile = os.getenv('PWD')+"/crabStdoutTMPfile.log"
+  def setTMPstdoutFile(self,stdoutFilename):
+     self.stdoutTMPfile=stdoutFilename
   def findCrabJobDir(self,where=os.getenv('PWD')):
     import os
     possCrabs = os.walk(where).next()[1];possCrabs.sort()
@@ -47,8 +49,8 @@ class crabDeamon(object):
       return crabExitCode
     else:
       return open(self.stdoutTMPfile) if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subPStdOut
-  def status(self):
-    self.executeCommand("-status",debug = True)
+  def status(self,opts=""):
+    self.executeCommand("-status "+opts,debug = True)
   def getoutput(self):
     self.executeCommand("-getoutput",debug = True)
   def multiCommand(self,command,listJobs,debug=False):
