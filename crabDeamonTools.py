@@ -11,7 +11,7 @@ class crabDeamon(object):
   def findCrabJobDir(self,where=os.getenv('PWD')):
     import os
     possCrabs = os.walk(where).next()[1];possCrabs.sort()
-    self.crabJobDir = (where +(os.path.sep if not where.endswith(os.path.sep) else "")+possCrabs[0]) if len (possCrabs) > 0 else None
+    self.crabJobDir = (where +(os.path.sep if not where.endswith(os.path.sep) else "")+possCrabs[-1]) if len (possCrabs) > 0 else None
     if not self.crabJobDir.startswith('crab_0_'):
       print "Warning using not crab default directory ",self.crabJobDir
   def executeCommand(self,command,debug = False,returnOutput = False,where = ''):
@@ -126,7 +126,7 @@ class crabDeamon(object):
     if len(createdJobs) > 0:
       self.multiCommand('-submit',createdJobs,debug = True and not onlySummary)
     if onlySummary:
-      print "CrabJob ",self.postfix
+      print "CrabJob ",self.crabJobDir
       print "jobs done/retrieved good ",len(doneJobsGood+downloadableJobs),"/",len(jobOutput)
       print "jobs resubmitted ",",".join(doneJobsBad+downloadedJobsBad+abortedJobs+cancelledJobs)
       print "just downloaded ",",".join(downloadableNoCodeJobs)
