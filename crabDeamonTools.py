@@ -101,7 +101,9 @@ class crabDeamon(object):
           downloadableNoCodeJobs.append(jSplit[0])
         if jSplit[3] == "Created" and jSplit[2] == "Created":
           createdJobs.append(jSplit[0])
-    self.allRetrieved = len(doneJobsGood) == len(jobOutput) 
+    self.allRetrieved = len(doneJobsGood) == len(jobOutput) and len(jobOutput) > 0
+    if not len(jobOutput) > 0:
+      print "crab job has no jobs!!!! warning" 
     if not onlySummary:
       print " downloadableJobs ",downloadableJobs
       print "doneJobsGood ",doneJobsGood," ",len(doneJobsGood)," of ",len(jobOutput)
