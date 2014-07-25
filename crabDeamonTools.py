@@ -6,6 +6,7 @@ class crabDeamon(object):
       self.findCrabJobDir() 
     else: self.crabJobDir = None
     self.stdoutTMPfile = os.getenv('PWD')+"/crabStdoutTMPfile.log"
+    self.useCRAB3 = False
   def setTMPstdoutFile(self,stdoutFilename):
      self.stdoutTMPfile=stdoutFilename
   def findCrabJobDir(self,where=os.getenv('PWD')):
@@ -19,7 +20,7 @@ class crabDeamon(object):
       print "no crabJobDir given "; return
     import subprocess,os,sys
     whereExec = ""
-    if not '-create' in command:
+    if not '-create' in command and not self.useCRAB3:
       whereExec = "-c "+self.crabJobDir+" " 
     stopKey = 'stopKeyDONE'
     command = ("cd "+where+" &&" if where else "")+ " crab "+whereExec +command+' ;echo "returnCodeCrab: "$?"!"; echo "'+stopKey+'"'
@@ -50,7 +51,7 @@ class crabDeamon(object):
     else:
       return open(self.stdoutTMPfile) if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subPStdOut
   def status(self,opts=""):
-    self.executeCommand("-status "+opts,debug = True)
+    self.executeCommand(("-" if not self.useCRAB3 else "" )+"status "+opts,debug = True)
   def getoutput(self):
     self.executeCommand("-getoutput",debug = True)
   def multiCommand(self,command,listJobs,debug=False):
