@@ -51,7 +51,7 @@ class crabDeamon(object):
     else:
       return open(self.stdoutTMPfile) if hasattr(self,'stdoutTMPfile') and self.stdoutTMPfile else subPStdOut
   def status(self,opts=""):
-    self.executeCommand(("-" if not self.useCRAB3 else "" )+"status "+opts,debug = True)
+    self.executeCommand(("-" if not self.useCRAB3 else "" )+"status "+opts,debug = True,where=self.crabDir)
   def getoutput(self):
     self.executeCommand("-getoutput",debug = True)
   def multiCommand(self,command,listJobs,debug=False):
