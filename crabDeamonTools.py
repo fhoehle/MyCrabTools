@@ -1,4 +1,4 @@
-import os,sys,subprocess,re
+import os,sys,subprocess,re,time
 #####
 class crabDeamon(object):
   def __init__(self,autoFind = True):
@@ -13,7 +13,7 @@ class crabDeamon(object):
     import os
     possCrabs = os.walk(where).next()[1];possCrabs.sort()
     self.crabJobDir = (where +(os.path.sep if not where.endswith(os.path.sep) else "")+possCrabs[-1]) if len (possCrabs) > 0 else None
-    if not self.crabJobDir.startswith('crab_0_'):
+    if not self.crabJobDir or not self.crabJobDir.startswith('crab_0_'):
       print "Warning using not crab default directory ",self.crabJobDir
   def executeCommand(self,command,debug = False,returnOutput = False,where = ''):
     if not hasattr(self,'crabJobDir') and not '-create' in command:
@@ -79,6 +79,7 @@ class crabDeamon(object):
     maxP = max( [ t[0] for t in tests])   
     return [ statusOutput.split()[0] for statusOutput in statusOutputs if maxP < len(statusOutput.split()) and sum( [statusOutput.split()[i] == t for i,t in tests]  ) == noTest ]
   def automaticResubmit(self,onlySummary = False,debug = False):
+    print time.ctime()
     if hasattr(self,'allRetrieved') and self.allRetrieved:
       print "all retrieved ",len(self.retrievedGoodJobs)
       return 0   
